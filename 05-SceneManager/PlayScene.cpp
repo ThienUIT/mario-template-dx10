@@ -14,23 +14,13 @@
 
 using namespace std;
 
-CPlayScene::CPlayScene(int id, LPCWSTR filePath):
+CPlayScene::CPlayScene(int id, LPCWSTR filePath) :
 	CScene(id, filePath)
 {
 	player = NULL;
 	key_handler = new CSampleKeyHandler(this);
 }
 
-
-#define SCENE_SECTION_UNKNOWN -1
-#define SCENE_SECTION_ASSETS	1
-#define SCENE_SECTION_OBJECTS	2
-
-#define ASSETS_SECTION_UNKNOWN -1
-#define ASSETS_SECTION_SPRITES 1
-#define ASSETS_SECTION_ANIMATIONS 2
-
-#define MAX_SCENE_LINE 1024
 
 void CPlayScene::_ParseSection_SPRITES(string line)
 {
@@ -49,21 +39,10 @@ void CPlayScene::_ParseSection_SPRITES(string line)
 	if (tex == NULL)
 	{
 		DebugOut(L"[ERROR] Texture ID %d not found!\n", texID);
-		return; 
+		return;
 	}
 
 	CSprites::GetInstance()->Add(ID, l, t, r, b, tex);
-}
-
-void CPlayScene::_ParseSection_ASSETS(string line)
-{
-	vector<string> tokens = split(line);
-
-	if (tokens.size() < 1) return;
-
-	wstring path = ToWSTR(tokens[0]);
-	
-	LoadAssets(path.c_str());
 }
 
 void CPlayScene::_ParseSection_ANIMATIONS(string line)
@@ -80,15 +59,16 @@ void CPlayScene::_ParseSection_ANIMATIONS(string line)
 	for (int i = 1; i < tokens.size(); i += 2)	// why i+=2 ?  sprite_id | frame_time  
 	{
 		int sprite_id = atoi(tokens[i].c_str());
-		int frame_time = atoi(tokens[i+1].c_str());
+		int frame_time = atoi(tokens[i + 1].c_str());
 		ani->Add(sprite_id, frame_time);
 	}
+	DebugOut(L"[INFO] _ParseSection_ANIMATIONS--> %s\n", ToWSTR(line).c_str());
 
 	CAnimations::GetInstance()->Add(ani_id, ani);
 }
 
 /*
-	Parse a line in section [OBJECTS] 
+	Parse a line in section [OBJECTS]
 */
 void CPlayScene::_ParseSection_OBJECTS(string line)
 {
@@ -101,23 +81,23 @@ void CPlayScene::_ParseSection_OBJECTS(string line)
 	float x = (float)atof(tokens[1].c_str());
 	float y = (float)atof(tokens[2].c_str());
 
-	CGameObject *obj = NULL;
+	CGameObject* obj = NULL;
 
 	switch (object_type)
 	{
 	case OBJECT_TYPE_MARIO:
-		if (player!=NULL) 
+		if (player != NULL)
 		{
 			DebugOut(L"[ERROR] MARIO object was created before!\n");
 			return;
 		}
-		obj = new CMario(x,y); 
-		player = (CMario*)obj;  
+		obj = new CMario(x, y);
+		player = (CMario*)obj;
 
 		DebugOut(L"[INFO] Player object has been created!\n");
 		break;
-	case OBJECT_TYPE_GOOMBA: obj = new CGoomba(x,y); break;
-	case OBJECT_TYPE_BRICK: obj = new CBrick(x,y); break;
+	case OBJECT_TYPE_GOOMBA: obj = new CGoomba(x, y); break;
+	case OBJECT_TYPE_BRICK: obj = new CBrick(x, y); break;
 	case OBJECT_TYPE_COIN: obj = new CCoin(x, y); break;
 
 	case OBJECT_TYPE_PLATFORM:
@@ -161,40 +141,6 @@ void CPlayScene::_ParseSection_OBJECTS(string line)
 	objects.push_back(obj);
 }
 
-void CPlayScene::LoadAssets(LPCWSTR assetFile)
-{
-	DebugOut(L"[INFO] Start loading assets from : %s \n", assetFile);
-
-	ifstream f;
-	f.open(assetFile);
-
-	int section = ASSETS_SECTION_UNKNOWN;
-
-	char str[MAX_SCENE_LINE];
-	while (f.getline(str, MAX_SCENE_LINE))
-	{
-		string line(str);
-
-		if (line[0] == '#') continue;	// skip comment lines	
-
-		if (line == "[SPRITES]") { section = ASSETS_SECTION_SPRITES; continue; };
-		if (line == "[ANIMATIONS]") { section = ASSETS_SECTION_ANIMATIONS; continue; };
-		if (line[0] == '[') { section = SCENE_SECTION_UNKNOWN; continue; }
-
-		//
-		// data section
-		//
-		switch (section)
-		{
-		case ASSETS_SECTION_SPRITES: _ParseSection_SPRITES(line); break;
-		case ASSETS_SECTION_ANIMATIONS: _ParseSection_ANIMATIONS(line); break;
-		}
-	}
-
-	f.close();
-
-	DebugOut(L"[INFO] Done loading assets from %s\n", assetFile);
-}
 
 void CPlayScene::Load()
 {
@@ -204,7 +150,7 @@ void CPlayScene::Load()
 	f.open(sceneFilePath);
 
 	// current resource section flag
-	int section = SCENE_SECTION_UNKNOWN;					
+	int section = SCENE_SECTION_UNKNOWN;
 
 	char str[MAX_SCENE_LINE];
 	while (f.getline(str, MAX_SCENE_LINE))
@@ -212,17 +158,35 @@ void CPlayScene::Load()
 		string line(str);
 
 		if (line[0] == '#') continue;	// skip comment lines	
-		if (line == "[ASSETS]") { section = SCENE_SECTION_ASSETS; continue; };
-		if (line == "[OBJECTS]") { section = SCENE_SECTION_OBJECTS; continue; };
-		if (line[0] == '[') { section = SCENE_SECTION_UNKNOWN; continue; }	
+
+
+		if (line == "[SPRITES]") {
+			section = SCENE_SECTION_SPRITES; continue;
+		}
+		/*if (line == "[TILEMAP DATA]") {
+			section = SCENE_SECTION_TILEMAP_DATA; continue;
+		}*/
+		if (line == "[ANIMATIONS]") {
+			section = SCENE_SECTION_ANIMATIONS; continue;
+		}
+		/*if (line == "[ANIMATION_SETS]") {
+			section = SCENE_SECTION_ANIMATION_SETS; continue;
+		}*/
+		if (line == "[OBJECTS]") {
+			section = SCENE_SECTION_OBJECTS; continue;
+		}
+		if (line[0] == '[') { section = SCENE_SECTION_UNKNOWN; continue; }
 
 		//
 		// data section
 		//
 		switch (section)
-		{ 
-			case SCENE_SECTION_ASSETS: _ParseSection_ASSETS(line); break;
-			case SCENE_SECTION_OBJECTS: _ParseSection_OBJECTS(line); break;
+		{
+		case SCENE_SECTION_SPRITES: _ParseSection_SPRITES(line); break;
+		case SCENE_SECTION_ANIMATIONS: _ParseSection_ANIMATIONS(line); break;
+			//case SCENE_SECTION_ANIMATION_SETS: _ParseSection_ANIMATION_SETS(line); break;
+		case SCENE_SECTION_OBJECTS: _ParseSection_OBJECTS(line); break;
+			//case SCENE_SECTION_TILEMAP_DATA: _ParseSection_TILEMAP_DATA(line); break;
 		}
 	}
 
@@ -248,13 +212,13 @@ void CPlayScene::Update(DWORD dt)
 	}
 
 	// skip the rest if scene was already unloaded (Mario::Update might trigger PlayScene::Unload)
-	if (player == NULL) return; 
+	if (player == NULL) return;
 
 	// Update camera to follow mario
 	float cx, cy;
 	player->GetPosition(cx, cy);
 
-	CGame *game = CGame::GetInstance();
+	CGame* game = CGame::GetInstance();
 	cx -= game->GetBackBufferWidth() / 2;
 	cy -= game->GetBackBufferHeight() / 2;
 
@@ -287,7 +251,7 @@ void CPlayScene::Clear()
 /*
 	Unload scene
 
-	TODO: Beside objects, we need to clean up sprites, animations and textures as well 
+	TODO: Beside objects, we need to clean up sprites, animations and textures as well
 
 */
 void CPlayScene::Unload()
